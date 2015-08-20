@@ -1,0 +1,24 @@
+
+
+
+
+
+1.   make collisions side dependent, so the player doesn't jump through platforms
+
+2.  make a death/gameover situation
+	a.  remove the ground, or have it slowly sink.
+	b.  have an out of bounds clause for player
+	
+3.  import a test sprite for player.
+
+4.  create a score counter
+
+5.  create some bonus point objects
+
+6.  make the player stand comfortably without bouncing on platforms, and still be able to fall off the edge
+
+7.  create a grappling hook type thing
+	a.  first make a line projectile coming from the player
+	b.  mouse controls direction of projectile
+	c.  collision handling
+	d.  pull the player towards it as it shortens

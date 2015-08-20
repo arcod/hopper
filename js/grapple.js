@@ -1,3 +1,5 @@
+
+
 var CANVAS_WIDTH = 480;
 var CANVAS_HEIGHT = 620;
 var canvasElement = $("<canvas>")
@@ -7,12 +9,14 @@ var canvasElement = $("<canvas>")
 var canvas = canvasElement.get(0).getContext("2d");
 canvasElement.appendTo('body');
 
-var FPS = 30;
+var FPS = 45;
 	
-setInterval(function () {
+var setIntervalId = (setInterval(function () {
 update();
 draw();
-}, 1000/FPS);
+}, 1000/FPS))
+	
+
 
 
 function draw() {
@@ -21,11 +25,15 @@ function draw() {
 	ground.draw();
 	
 	playerBullets.forEach(function(bullet) {
-    bullet.draw();
-  });
-  platforms.forEach(function(platform){
-  	platform.draw();
-  });
+		bullet.draw();
+	});
+	platforms.forEach(function(platform){
+		platform.draw();
+	});
+	pointGlobes.forEach(function(pointGlobe){
+		pointGlobe.draw();
+	});
+	
 }
 						
 var player = {
@@ -39,7 +47,10 @@ var player = {
 	draw: function() {
 		canvas.fillStyle = this.color;
 		canvas.fillRect(this.x, this.y, this.width, this.height);
-	}
+	},
+	 aboveGround: function() {
+    return this.y < CANVAS_HEIGHT;
+  }
 };
 
 var scrollSpeed = 2;
@@ -48,12 +59,16 @@ var gravity = 1.5;
 var ground = {
 	color: "#000",
 	x:0,
-	y:520,
+	y:420,
+	yVelocity:.5,
 	width:CANVAS_WIDTH,
 	height:20,
 	draw: function() {
 		canvas.fillStyle = this.color;
 		canvas.fillRect(this.x, this.y, this.width, this.height);
+	},
+	update: function(){
+		this.y += this.yVelocity;
 	}
 }
 
@@ -77,7 +92,27 @@ function AddPlatform(I) {
   return I;
 }
 
+var pointGlobes = [];
 
+function AddPointGlobe(I) {
+	I.radius = 5,
+	I.yVelocity=scrollSpeed;
+	I.color = "#000";
+	I.draw = function() {
+		canvas.fillStyle = this.color;
+		canvas.arc(this.x, this.y, this.radius, 0*Math.PI,1.5*Math.PI);
+	};
+	
+	I.update = function() {
+		I.y += I.yVelocity;
+	};
+	
+	I.inBounds = function() {
+		return I.y >= 0 && I.y+I.height <= CANVAS_HEIGHT;
+	};
+	
+	return I;
+}
 
 
 
@@ -103,8 +138,16 @@ $(function() {
 
 //update
 
-//lateral movement keybinds
+
 function update() {
+	//scoring
+	var scoreCounter = document.getElementById('scoreCounter');
+	var score = scoreCounter.innerHTML;
+	score++;
+	scoreCounter.innerHTML = score;
+	
+	
+	//lateral movement keybinds
   if (keydown.left || keydown.a) {
     player.x -= 5;
   }
@@ -130,30 +173,48 @@ function update() {
 
 	if (player.jumping){
 		player.y += player.yVelocity;
-		player.yVelocity += gravity;
+		player.yVelocity += gravity
+		if (player.yVelocity > 15) {
+			player.vVelocity = 15;
+		};
 	}
 
 	if (!(player.jumping)){
 		player.y += player.yVelocity;
 		player.yVelocity += gravity;
 	}
-
+//player death
+	if (!player.aboveGround()){
+		clearInterval(setIntervalId);
+	}
 
 //other keybinds
   if (keydown.space) {
   console.log(platforms);
   }
 	
-//platform creation
+//platform spawn
 
 	var platformSpawn = Math.random();
-	if (platformSpawn > .98 && platforms.length <9)	{
+	if (platformSpawn > .95 && platforms.length <15)	{
 	    platforms.push(AddPlatform({
    			x: Math.random()*CANVAS_WIDTH - 100,
-  			y: Math.random()*CANVAS_HEIGHT/10,
+  			y: 10,
 			}));
 	}
-
+//pointglobe spawn
+	var pointGlobeSpawn = Math.random();
+		if (pointGlobeSpawn > .95 && pointGlobes.length <15)	{
+	    pointGlobes.push(AddPointGlobe({
+   			x: Math.random()*CANVAS_WIDTH,
+  			y: 10,
+			}));
+	}
+	
+//ground movement
+	
+	ground.update();
+	
 //platform movement
 	
 	platforms.forEach(function(platform) {
@@ -163,6 +224,14 @@ function update() {
 		}
   });
 
+  //pointglobe movement
+  	pointGlobes.forEach(function(pointGlobe) {
+		pointGlobe.update();
+		if (!(pointGlobe.inBounds())){
+			pointGlobes.splice(pointGlobe,1);
+		}
+  });
+  
 	//bullet movement
 	playerBullets.forEach(function(bullet) {
     bullet.update();
@@ -238,6 +307,15 @@ function collides(a, b) {
          a.y + a.height > b.y;
 }
 
+// evaluates to true if a lands on b
+function landsOn(a,b){
+	return a.yVelocity > 0 &&
+		a.y + a.height > b.y &&
+		(a.y + a.height < b.y + b.height || a.y +a.height -a.yVelocity <b.y +b.height) && 
+		b.x - a.width < a.x &&
+		a.x < b.x+b.width;
+}
+
 function handleCollisions() {
 	if (collides(player,ground)){
 		player.jumping=false;
@@ -245,7 +323,7 @@ function handleCollisions() {
 		player.yVelocity = scrollSpeed;
 	}
 	platforms.forEach(function(platform){
-		if (collides(platform,player)){
+		if (landsOn(player,platform)){
 		player.jumping=false;
 		player.y = platform.y - player.height;
 		player.yVelocity = 0;	
