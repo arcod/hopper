@@ -80,27 +80,8 @@ function AddPlatform(I) {
 	I.yVelocity=scrollSpeed;
 	I.color = "#000";
 	I.draw = function() {
-    canvas.fillStyle = this.color;
-    canvas.fillRect(this.x, this.y, this.width, this.height);
-  };
-  I.update = function() {
-    I.y += I.yVelocity;
-  };
-  I.inBounds = function() {
-    return I.y >= 0 && I.y+I.height <= CANVAS_HEIGHT;
-  };
-  return I;
-}
-
-var pointGlobes = [];
-
-function AddPointGlobe(I) {
-	I.radius = 5,
-	I.yVelocity=scrollSpeed;
-	I.color = "#000";
-	I.draw = function() {
 		canvas.fillStyle = this.color;
-		canvas.arc(this.x, this.y, this.radius, 0*Math.PI,1.5*Math.PI);
+		canvas.fillRect(this.x, this.y, this.width, this.height);
 	};
 	
 	I.update = function() {
@@ -109,6 +90,30 @@ function AddPointGlobe(I) {
 	
 	I.inBounds = function() {
 		return I.y >= 0 && I.y+I.height <= CANVAS_HEIGHT;
+	};
+	
+	return I;
+}
+
+var pointGlobes = [];
+
+function AddPointGlobe(I) {
+	I.radius = 5,
+	I.yVelocity=scrollSpeed;
+	I.color = "Blue";
+	I.draw = function() {
+		canvas.fillStyle = this.color;
+		canvas.arc(this.x, this.y, this.radius, 50, 100);
+		canvas.path();
+
+	};
+	
+	I.update = function() {
+		I.y += I.yVelocity;
+	};
+	
+	I.inBounds = function() {
+		return I.y >= 0 && I.y+I.radius <= CANVAS_HEIGHT;
 	};
 	
 	return I;
@@ -189,9 +194,12 @@ function update() {
 	}
 
 //other keybinds
-  if (keydown.space) {
-  console.log(platforms);
-  }
+	if (keydown.space) {
+	     pointGlobes.push(AddPointGlobe({
+   			x: Math.random()*CANVAS_WIDTH,
+  			y: 10,
+			}));
+	}
 	
 //platform spawn
 
@@ -207,7 +215,7 @@ function update() {
 		if (pointGlobeSpawn > .95 && pointGlobes.length <15)	{
 	    pointGlobes.push(AddPointGlobe({
    			x: Math.random()*CANVAS_WIDTH,
-  			y: 10,
+  			y: 100,
 			}));
 	}
 	
