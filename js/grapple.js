@@ -9,7 +9,7 @@ var canvasElement = $("<canvas>")
 var canvas = canvasElement.get(0).getContext("2d");
 canvasElement.appendTo('body');
 
-var FPS = 45;
+var FPS = 60;
 	
 var setIntervalId = (setInterval(function () {
 update();
@@ -73,6 +73,7 @@ var ground = {
 }
 
 var platforms = [];
+var updatesSincePlatform = 0;
 
 function AddPlatform(I) {
 	I.width=50;
@@ -98,13 +99,15 @@ function AddPlatform(I) {
 var pointGlobes = [];
 
 function AddPointGlobe(I) {
-	I.radius = 5,
+	I.radius = 10,
 	I.yVelocity=scrollSpeed;
 	I.color = "Blue";
 	I.draw = function() {
 		canvas.fillStyle = this.color;
-		canvas.arc(this.x, this.y, this.radius, 50, 100);
-		canvas.path();
+		canvas.beginPath();
+		canvas.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+		canvas.fill();
+		canvas.closePath(); 
 
 	};
 	
@@ -142,8 +145,6 @@ $(function() {
 });
 
 //update
-
-
 function update() {
 	//scoring
 	var scoreCounter = document.getElementById('scoreCounter');
@@ -203,16 +204,23 @@ function update() {
 	
 //platform spawn
 
-	var platformSpawn = Math.random();
-	if (platformSpawn > .95 && platforms.length <15)	{
+
+	updatesSincePlatform++;
+	if (updatesSincePlatform>30)	{
+			updatesSincePlatform = 0;
 	    platforms.push(AddPlatform({
    			x: Math.random()*CANVAS_WIDTH - 100,
   			y: 10,
 			}));
 	}
+	
+	
+	
+	
+	
 //pointglobe spawn
 	var pointGlobeSpawn = Math.random();
-		if (pointGlobeSpawn > .95 && pointGlobes.length <15)	{
+		if (pointGlobeSpawn > .95 && pointGlobes.length <6)	{
 	    pointGlobes.push(AddPointGlobe({
    			x: Math.random()*CANVAS_WIDTH,
   			y: 100,
@@ -315,6 +323,22 @@ function collides(a, b) {
          a.y + a.height > b.y;
 }
 
+function collidesWithCircle(a,c){
+	 var distX = Math.abs(c.x - a.x-a.width/2);
+    var distY = Math.abs(c.y - a.y-a.height/2);
+
+    if (distX > (a.width/2 + c.radius)) { return false; }
+    if (distY > (a.height/2 + c.radius)) { return false; }
+
+    if (distX <= (a.width/2)) { return true; } 
+    if (distY <= (a.height/2)) { return true; }
+
+    var dx=distX-a.width/2;
+    var dy=distY-a.height/2;
+    return (dx*dx+dy*dy<=(c.radius*c.radius));
+}
+
+
 // evaluates to true if a lands on b
 function landsOn(a,b){
 	return a.yVelocity > 0 &&
@@ -332,11 +356,22 @@ function handleCollisions() {
 	}
 	platforms.forEach(function(platform){
 		if (landsOn(player,platform)){
-		player.jumping=false;
-		player.y = platform.y - player.height;
-		player.yVelocity = 0;	
+			player.jumping=false;
+			player.y = platform.y - player.height;
+			player.yVelocity = 0;	
 		}
 	})
+	pointGlobes.forEach(function(globe,index){
+		if (collidesWithCircle(player,globe)){
+			pointGlobes.splice(index,1);
+			var scoreCounter = document.getElementById('scoreCounter');
+			var score = scoreCounter.innerHTML;
+			score = parseInt(score,10) + 500;
+			scoreCounter.innerHTML = score;
+		}
+	});
+
+
 }
 
 //function standStill(){
