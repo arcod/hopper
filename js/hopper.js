@@ -7,20 +7,31 @@ var canvasElement = $("<canvas>")
 	.attr('height', CANVAS_HEIGHT);
 
 var canvas = canvasElement.get(0).getContext("2d");
-canvasElement.appendTo('body');
+canvasElement.appendTo('.canvasHolder');
 
-var FPS = 60;
-	
+var FPS = 50;
+
+var	level = 1;
+
 var setIntervalId = (setInterval(function () {
 update();
 draw();
 }, 1000/FPS))
-	
 
 
+
+//draw function
 
 function draw() {
 	canvas.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+	
+	
+	canvas.fillStyle = "rgba(0, 0, 0, .3)";
+  canvas.font = "italic 50pt Arial";
+  canvas.textAlign="center"; 
+  canvas.fillText("Level " + level, CANVAS_WIDTH/2, 3*CANVAS_HEIGHT/4);
+
+	
 	player.draw();
 	ground.draw();
 	
@@ -33,17 +44,25 @@ function draw() {
 	pointGlobes.forEach(function(pointGlobe){
 		pointGlobe.draw();
 	});
+	pointTexts.forEach(function(text){
+		text.draw();
+	});
+
 	
 }
-						
+			
+			
+//constructor functions, various relevant globals
+			
 var player = {
-	color: "#00A",
+	color: colors.player,
 	x: 220,
 	y: 270,
 	width: 32,
 	height: 32,
 	jumping: true,
 	yVelocity: 2,
+	special: null,
 	draw: function() {
 		canvas.fillStyle = this.color;
 		canvas.fillRect(this.x, this.y, this.width, this.height);
@@ -57,10 +76,10 @@ var scrollSpeed = 2;
 var gravity = 1.5;
 
 var ground = {
-	color: "#000",
+	color: colors.ground,
 	x:0,
 	y:420,
-	yVelocity:.5,
+	yVelocity:.7,
 	width:CANVAS_WIDTH,
 	height:20,
 	draw: function() {
@@ -79,10 +98,15 @@ function AddPlatform(I) {
 	I.width=50;
 	I.height=15;
 	I.yVelocity=scrollSpeed;
-	I.color = "#000";
+	I.color = colors.platform;
 	I.draw = function() {
+		canvas.beginPath();
+		canvas.rect(this.x, this.y, this.width, this.height);
 		canvas.fillStyle = this.color;
-		canvas.fillRect(this.x, this.y, this.width, this.height);
+		canvas.fill();
+		canvas.lineWidth = 2;
+		canvas.strokeStyle = colors.platformBorder;
+		canvas.stroke();
 	};
 	
 	I.update = function() {
@@ -97,17 +121,20 @@ function AddPlatform(I) {
 }
 
 var pointGlobes = [];
+var dpCount = 0;
 
 function AddPointGlobe(I) {
 	I.radius = 10,
 	I.yVelocity=scrollSpeed;
-	I.color = "Blue";
 	I.draw = function() {
-		canvas.fillStyle = this.color;
+		var pgGradient = canvas.createRadialGradient(this.x,this.y,5,this.x,this.y,10);
+				pgGradient.addColorStop(0,this.color);
+				pgGradient.addColorStop(1,"white");
+		canvas.fillStyle = pgGradient;
 		canvas.beginPath();
 		canvas.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
 		canvas.fill();
-		canvas.closePath(); 
+
 
 	};
 	
@@ -122,8 +149,41 @@ function AddPointGlobe(I) {
 	return I;
 }
 
+var pointTexts = [];
 
+function AddPointText(I){
+	I.update = function(){
+		I.y += I.yVelocity;
+		if (I.xVelocity){
+			I.x += I.xVelocity;
+		}
+	}
+		return I;
+	
+}
 
+function increaseScore(amount){
+	var scoreCounter = document.getElementById('scoreCounter');
+	var score = scoreCounter.innerHTML;
+
+	if (player.special === 'doublePoints'){
+		score = parseInt(score, 10) + 2*amount;
+	} else {
+		score = parseInt(score, 10) + amount;
+	}
+	scoreCounter.innerHTML = score;
+	
+	if (parseInt(score,10)>(level*10000)) {
+		level++;
+		FPS += 3;
+		window.clearInterval(setIntervalId);
+		setIntervalId = (setInterval(function () {
+				update();
+				draw();
+			}, 1000/FPS))
+	}
+	
+}
 
 
 //this is some wrapper the tutorial gave.  I don't really know what it does. 
@@ -147,19 +207,16 @@ $(function() {
 //update
 function update() {
 	//scoring
-	var scoreCounter = document.getElementById('scoreCounter');
-	var score = scoreCounter.innerHTML;
-	score++;
-	scoreCounter.innerHTML = score;
+	increaseScore(1);
 	
 	
 	//lateral movement keybinds
   if (keydown.left || keydown.a) {
-    player.x -= 5;
+    player.x -= 6;
   }
 
   if (keydown.right || keydown.d) {
-    player.x += 5;
+    player.x += 6;
   }
 // here are the movement limits to stop going off the canvas
   if (player.x <= 0){
@@ -192,6 +249,13 @@ function update() {
 //player death
 	if (!player.aboveGround()){
 		clearInterval(setIntervalId);
+		
+		var scoreCounter = document.getElementById('scoreCounter');
+		var score = scoreCounter.innerHTML;
+		var deadScore = document.getElementById('deadScore');
+		deadScore.innerHTML = score;
+		
+		$('#gameOverScreen').toggle();
 	}
 
 //other keybinds
@@ -206,10 +270,10 @@ function update() {
 
 
 	updatesSincePlatform++;
-	if (updatesSincePlatform>30)	{
+	if (updatesSincePlatform>22)	{
 			updatesSincePlatform = 0;
 	    platforms.push(AddPlatform({
-   			x: Math.random()*CANVAS_WIDTH - 100,
+   			x: Math.random()*(CANVAS_WIDTH - 50)+25,
   			y: 10,
 			}));
 	}
@@ -219,14 +283,44 @@ function update() {
 	
 	
 //pointglobe spawn
-	var pointGlobeSpawn = Math.random();
-		if (pointGlobeSpawn > .95 && pointGlobes.length <6)	{
-	    pointGlobes.push(AddPointGlobe({
-   			x: Math.random()*CANVAS_WIDTH,
-  			y: 100,
-			}));
-	}
 	
+	var pointGlobeSpawn = Math.random();
+		if (pointGlobeSpawn > .95 && pointGlobes.length <8)	{
+	    
+	  	specialGlobeSpawn = Math.random();
+	  
+	    if (specialGlobeSpawn > .98) {
+	    	pointGlobes.push(AddPointGlobe({
+   				x: Math.random()*CANVAS_WIDTH,
+  				y: 100,
+  				color: colors.pointGlobe2x,
+  				special: "doublePoints"
+  			}));
+	    } else {
+	 	 		pointGlobes.push(AddPointGlobe({
+   				x: Math.random()*CANVAS_WIDTH,
+  				y: 100,
+  				color: colors.pointGlobe
+  			}));
+  		}
+	}
+
+//special globe timers
+
+	if (player.special === "doublePoints") {
+		dpCount++;
+		$('#doublePointsTimer').html((Math.round(300/FPS)-Math.round(dpCount/FPS)));
+		if (dpCount > 300) {
+			player.special = "none";
+			dpCount=0;
+			$('#doublePointsTimer').toggle();
+			$('#doublePointsSpan').toggle();
+		}
+	}
+
+
+
+
 //ground movement
 	
 	ground.update();
@@ -242,11 +336,17 @@ function update() {
 
   //pointglobe movement
   	pointGlobes.forEach(function(pointGlobe) {
-		pointGlobe.update();
-		if (!(pointGlobe.inBounds())){
-			pointGlobes.splice(pointGlobe,1);
-		}
+			pointGlobe.update();
+			if (!(pointGlobe.inBounds())){
+				pointGlobes.splice(pointGlobe,1);
+			}
   });
+  
+  //pointtext movement
+  	pointTexts.forEach(function(text){
+  		text.update();
+  	});
+  
   
 	//bullet movement
 	playerBullets.forEach(function(bullet) {
@@ -358,16 +458,75 @@ function handleCollisions() {
 		if (landsOn(player,platform)){
 			player.jumping=false;
 			player.y = platform.y - player.height;
-			player.yVelocity = 0;	
+			player.yVelocity = scrollSpeed;	
 		}
 	})
 	pointGlobes.forEach(function(globe,index){
 		if (collidesWithCircle(player,globe)){
+			if (globe.special === "doublePoints"){
+				pointTexts.push(AddPointText({
+						x:globe.x-10,
+						y:globe.y+20,
+						yVelocity: -2,
+						xVelocity: 0,
+						alpha: 1,
+						circleMover: 1,
+						draw: function(){canvas.fillStyle = "rgba(0,0,0, " + this.alpha + ")";
+            				canvas.font = "italic 30pt Arial";
+           					canvas.fillText("2x!", this.x, this.y);
+           					this.yVelocity = Math.sin(this.circleMover);
+           					this.xVelocity = Math.sin(-this.circleMover);
+           					this.circleMover += .25;
+           					this.alpha = this.alpha - 0.005; // decrease opacity (fade out)
+            					if (this.alpha < 0) {
+												pointTexts.splice(this,1)
+            					}
+            }
+					})); // 2x text
+				if (player.special != "doublePoints"){
+					$('#doublePointsTimer').toggle();
+					$('#doublePointsSpan').toggle();
+					player.special = "doublePoints";
+				} else {
+					dpCount = 0;
+				}
+			} 
+			if (player.special=="doublePoints"){
+				pointTexts.push(AddPointText({
+						x:globe.x-20,
+						y:globe.y-10,
+						yVelocity: -1,
+						alpha: 1,
+						draw: function(){canvas.fillStyle = "rgba(255, 255, 255, " + this.alpha + ")";
+            				canvas.font = "italic 20pt Arial";
+           					canvas.fillText("+1000", this.x, this.y);
+           					this.alpha = this.alpha - 0.02; // decrease opacity (fade out)
+										// for some reason, this splices when the 2k point text splices.
+            }
+					})); //1k points text
+			}	 else {
+				pointTexts.push(AddPointText({
+						x:globe.x-20,
+						y:globe.y-10,
+						yVelocity: -1,
+						alpha: 1,
+						draw: function(){canvas.fillStyle = "rgba(255, 255, 255, " + this.alpha + ")";
+            				canvas.font = "italic 15pt Arial";
+           					canvas.fillText("+500", this.x, this.y);
+           					this.alpha = this.alpha - 0.02; // decrease opacity (fade out)
+            					if (this.alpha < 0) {
+												pointTexts.splice(this,1)
+            					}
+            }
+          }));
+				
+
+				
+				
+				
+			}
 			pointGlobes.splice(index,1);
-			var scoreCounter = document.getElementById('scoreCounter');
-			var score = scoreCounter.innerHTML;
-			score = parseInt(score,10) + 500;
-			scoreCounter.innerHTML = score;
+			increaseScore(500);
 		}
 	});
 
